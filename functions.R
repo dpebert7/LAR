@@ -3,9 +3,10 @@
 
 
 # Storage directory for loading R objects
-setwd("/home/david/Desktop/Documents/GitRepos/Rsentiment")
-storage.directory = "~/Desktop/Huang Research/Rsentiment/"
-github.directory = "~/Desktop/Documents/GitRepos/Rsentiment"
+#setwd("/home/david/Desktop/Documents/GitRepos/LAR")
+setwd("C:/Users/000678922/Desktop/LAR")
+storage.directory = "~/Desktop/Huang Research/LAR/"
+github.directory = "~/Desktop/Documents/GitRepos/LAR"
 
 # Load libraries for other scripts
 library(stringr) #library for str_count function
@@ -15,7 +16,6 @@ library(caret) #for confusionMatrix
 #library(tm) # for building term frequency matrix from corpus
 #library(cldr) # for detecting tweet language
 #library(beepr) # for beeping, just use beepr::beep(3)
-
 
 #library(e1071) # for naive bayes model
 #library(pROC) #ROC curves
@@ -80,10 +80,6 @@ ndsi.frequencies=function(x){
 
 
 
-negations = c("no", "not","none","nobody","nothing","neither","never","doesnt","isnt","wasnt","shouldnt","wouldnt", "couldnt","wont","cant","dont")
-
-
-
 bin.maker = function(binsize, max){
   nbins = ceiling(max/binsize)
   result = as.list(1:nbins)
@@ -126,17 +122,6 @@ classify.polarity.machine = function(documents, chunk.size = 5000, model = rf.mo
   return(result)
 }
 
-# a = Sys.time()
-#sent140$rf.polarity = classify.polarity.machine(sent140$text, chunk.size = 30)
-# Sys.time()-a
-
-
-#                                  Starting time: 1.539257 mins
-#         Moving column_names to vector in setup: 1.49686 mins
-#     Restrict ndsi_lexicon to 2^10 = 1024 terms: 1.488172 mins
-#                   Fix the dang colames forever: 1.507144 mins
-#               Put colnames back in their place: 1.446915 mins
-#                    Doing term.freq all at once: 3.961535 SECS  <- Do this. Maybe 1000 rows at a time? Actually 5000
 
 
 
@@ -161,51 +146,12 @@ optimize.cutoff = function(score.vec, polarity.vec, min = -10, max = 10, step = 
 
 
 
-# Additional functions
-# confmatrix=function(y,predy){
-#   matrix=table(y,predy)
-#   accuracy=sum(diag(matrix))/sum(matrix)
-#   return(list(matrix=matrix,accuracy=accuracy,error=1-accuracy))
-# }
 
 
 
-# rand.which.max=function(x){
-#   index=((1:length(x))[x==(max(x))])
-#   return(sample(c(index,index),1))
-# }
-
-
-
-# old.classify.polarity.machine = function(documents, model = rf.model){
-#   require(plyr)
-#   require(dplyr)
-#   require(randomForest)
-#   load(file = paste(storage.directory, "rf.model.RData", sep = ""))
-#   load(paste(storage.directory,"freq.all.RData", sep = "")) # load freq.all lexicon into memory as freq.all
-#   ndsi_lexicon = freq.all[1:1024,]
-#   column_names = paste("X", 1:1024, sep = "")
-#   print("setup complete")
-#   
-#   sentpredvec = laply(documents, function(documents, mod = model)
-#   {
-#     term.freq <- t(apply(t(documents), 2,    #MAY TAKE TIME!
-#                          ndsi.frequencies))
-#     
-#     colnames(term.freq) = column_names
-#     pred.sentiment = predict(model, newdata = term.freq, type = "prob")
-#     
-#     return(pred.sentiment[1])
-#   }, .progress = "text")
-#   return(sentpredvec)
-# }
-
-
-
-
-####################################################################################################################################
+#############################################################
 ###### Remove Unnecessary Raw columns
-####################################################################################################################################
+#############################################################
 
 remove_raw_columns = function(tweet_data_frame){
   
@@ -225,9 +171,9 @@ remove_raw_columns = function(tweet_data_frame){
 
 
 
-####################################################################################################################################
+#############################################################
 ###### Remove Spanish Tweets
-####################################################################################################################################
+#############################################################
 
 remove_spanish_tweets = function(tweet_data_frame){
   require(cldr)
@@ -242,9 +188,9 @@ remove_spanish_tweets = function(tweet_data_frame){
 }
 
 
-####################################################################################################################################
+#############################################################
 ###### Identify emoticon tweets within a data frame
-####################################################################################################################################
+#############################################################
 
 
 identify_emoticons = function(tweet_data_frame){
@@ -269,9 +215,9 @@ identify_emoticons = function(tweet_data_frame){
 
 
 
-####################################################################################################################################
+#############################################################
 ###### Clean Tweets
-####################################################################################################################################
+#############################################################
 
 clean.tweets = function(documents, 
                         usernameToken = "usernametoken", 
@@ -303,14 +249,15 @@ clean.tweets = function(documents,
 
 
 
-####################################################################################################################################
+#############################################################
 ###### Import tweets from .json files
-####################################################################################################################################
+#############################################################
 
 
 lexicon_sentiment_score = function(documents, lexicon = AFINN_lexicon){
   require(plyr)
   require(dplyr)
+  negations = c("no", "not","none","nobody","nothing","neither","never","doesnt","isnt","wasnt","shouldnt","wouldnt", "couldnt","wont","cant","dont")
   sentscorevec = laply(documents, function(documents, lex = lexicon)
   {
     words = unlist(strsplit(documents, " ")) #access words
@@ -341,24 +288,26 @@ lexicon_sentiment_score = function(documents, lexicon = AFINN_lexicon){
 
 
 
-####################################################################################################################################
+#############################################################
 ###### Import tweets from .json files
-####################################################################################################################################
+#############################################################
 
 #raw_file_path = "~/Desktop/Huang Research/September_LaPY_data/raw_data/"
 #feather_file_path = "~/Desktop/Huang Research/September_LaPY_data/feather_data/"
 #csv_file_path = "~/Desktop/Huang Research/September_LaPY_data/csv_data/"
 #max_tweets_per_file = 1000000  # make sure this number is significantly above the number of tweets per file, about 200k
 
-import_tweets_from_json = function(raw_file_path = "~/Desktop/Huang Research/September_LaPY_data/raw_data/",
-                                   feather_file_path = "~/Desktop/Huang Research/September_LaPY_data/feather_data/",
-                                   csv_file_path = "~/Desktop/Huang Research/September_LaPY_data/csv_data/",
+import_tweets_from_json = function(base_file_path = "C:/Users/000678922/Desktop/LAR_data",
+                                   raw_file_path = "raw_data/",
+                                   feather_file_path = "feather_data/",
+                                   csv_file_path = "csv_data/",
                                    max_tweets_per_file = 1000000){
   require(streamR)
   require(feather)
   
   keep_df = data.frame()
   j=1
+  setwd(base_file_path)
   
   for(i in list.files(path = raw_file_path)){
     print(paste("Reading ", i, "...", sep = ""))
@@ -421,9 +370,9 @@ import_tweets_from_json = function(raw_file_path = "~/Desktop/Huang Research/Sep
 
 
 
-####################################################################################################################################
+#############################################################
 ###### Build emoticon semi-supervised data set
-####################################################################################################################################
+#############################################################
 
 
 extract_emoticon_tweets = function(tweet_data_frame){
@@ -442,9 +391,9 @@ extract_emoticon_tweets = function(tweet_data_frame){
 
 
 
-####################################################################################################################################
+#############################################################
 ###### Find word frequency in a list of documents
-####################################################################################################################################
+#############################################################
 
 
 word_frequency <- function(document.vector, sparsity = .99){
@@ -470,9 +419,9 @@ word_frequency <- function(document.vector, sparsity = .99){
 
 
 
-####################################################################################################################################
+#############################################################
 ###### Build ndsi_lexicon words from emoticon
-####################################################################################################################################
+#############################################################
 
 
 emoticon_to_rf_classifier = function(emoticon_tweets, word_sparsity = 0.9999, smoothing_alpha = 2^7){
@@ -523,9 +472,9 @@ emoticon_to_rf_classifier = function(emoticon_tweets, word_sparsity = 0.9999, sm
 
 
 
-####################################################################################################################################
+#############################################################
 ###### Build a Bag of Words random forest classifier from emoticon_tweets
-####################################################################################################################################
+#############################################################
 
 
 make_term_freq = function(emoticon_tweets, ndsi_lexicon, max_words = 98, min_ndsi_score = 0.01){
@@ -555,10 +504,9 @@ make_term_freq = function(emoticon_tweets, ndsi_lexicon, max_words = 98, min_nds
 }
 
 
-
-####################################################################################################################################
+#############################################################
 ###### Make and test a random forest classifier from emoticon_term_freq
-####################################################################################################################################
+#############################################################
 
 
 make_rf_classifier = function(emoticon_term_freq, train_frac = 0.03, test_frac = 0.03){
@@ -608,9 +556,9 @@ make_rf_classifier = function(emoticon_term_freq, train_frac = 0.03, test_frac =
 
 
 
-####################################################################################################################################
+#############################################################
 ###### Apply rf_model to tweets
-####################################################################################################################################
+#############################################################
 
 
 

@@ -6,8 +6,8 @@ source("functions.R")
 
 # Import NEW 2016 tweets. Then analyze them.
 
-new_data_path = "~/Desktop/Huang Research/September_LaPY_data/"
-feather_file_path = "~/Desktop/Huang Research/September_LaPY_data/feather_data/"
+#new_data_path = "~/Desktop/Huang Research/September_LaPY_data/" #Linux
+new_data_path = "C:/Users/000678922/Desktop/LAR_data" #Windows
 
 # use import_tweets_from_json() from other functions.R to read .json files into cleaned .feather files
 a = Sys.time()
