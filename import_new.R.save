@@ -49,7 +49,7 @@ all_august_tweets = rbind(all_august_tweets, read_feather(path = "~/Desktop/Huan
 
 write_feather(all_august_tweets, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august.feather")
 Sys.time()-a
-#all_august_tweets = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august.feather")
+all_august_tweets = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august.feather")
 
 
 
@@ -66,35 +66,25 @@ rm(all_august_tweets)
 
 # Make emoticon_df using max 10000 rows of emoticon_df, then save to feather file
 a = Sys.time()
-table(emoticon_df[1:191131,"polarity"]) # Happy
-table(emoticon_df[191132:nrow(emoticon_df),"polarity"]) # Sad
+table(emoticon_df[1:191701,"polarity"]) # Happy
+table(emoticon_df[191702:nrow(emoticon_df),"polarity"]) # Sad
 
-indices = c(sample(1:191131,20000), sample(191132:nrow(emoticon_df),20000))
+set.seed(1)
+indices = c(sample(1:191701,20000), sample(191702:nrow(emoticon_df),20000))
 emoticon_df = emoticon_df[indices,]
 
-
-#write.csv(x = emoticon_df, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_df.csv", row.names = FALSE)
-#emoticon_df2 = read.csv(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_df.csv") #NOT THE SAME!
-#write_feather(emoticon_df, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_df.feather")
-#read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_df.feather") # WHY THIS ERROR??
-
+write_feather(emoticon_df, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_df.feather")
+read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_df.feather")
 
 # Make ndsi lexicon and save to feather 
-#ndsi_lexicon_df = make_ndsi_lexicon(emoticon_df, max_words = 500)
-
-#write.csv(x = ndsi_lexicon_df, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.csv", row.names = FALSE)
-#ndsi_lexicon_df2 = read.csv(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.csv")
-#write_feather(ndsi_lexicon_df, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.feather")
+ndsi_lexicon_df = make_ndsi_lexicon(emoticon_df, max_words = 500)
+write_feather(ndsi_lexicon_df, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.feather")
 read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.feather")
-
 
 # Make term-frequency data frame 
 emoticon_term_freq = make_term_freq(emoticon_df, ndsi_lexicon_df)
-
-write.csv(x = emoticon_term_freq, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_term_freq.csv", row.names = FALSE)
-#emoticon_term_freq2 = write.csv(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_term_freq.csv") # NOT THE SAME!!!
 write_feather(emoticon_term_freq, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_term_freq.feather")
-#print(paste("Finished making term-frequency data frame from tweet_df with", ncol(emoticon_term_freq)-5, "NDSI words..."))
+print(paste("Finished making term-frequency data frame from tweet_df with", ncol(emoticon_term_freq)-5, "NDSI words..."))
 
 
 # Build Random Forest Classifier and write to file <- This takes some time...
@@ -106,8 +96,8 @@ rf_model = make_rf_classifier(emoticon_term_freq, ndsi_lexicon_df, ntrain = 2800
 # Takes 13 mins with ntrain = 10000
 # Takes 35 mins with ntrain = 20000
 # Takes 1.17 hours with ntrain = 28000
-save(rf_model, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/rf_model.RData")
-#load(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/rf_model.RData")
+#save(rf_model, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/rf_model.RData")
+load(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/rf_model.RData")
 Sys.time()-a
 
 load(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/rf_model.RData")
@@ -119,20 +109,15 @@ load(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/rf_model.RDa
 ################################
 
 # Get all_august_tweets from above
-# ...
 
+classify.polarity.machine(documents = all_august_tweets$text, chunk.size = 100, model = rf_model$model)
 
-# then classify them!
-all_august_tweets$pred_polarity = classify.polarity.machine(tweet_df = all_august_tweets, chunk.size = 10000, ndsi_lexicon = ndsi_lexicon_df$word, model = rf_model$model)
-cutoff = 0.5
-all_august_tweets$pred_polarity = as.numeric(all_august_tweets$pred_polarity>cutoff)
-#write.csv(x = all_august_tweets, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august_pred.csv", row.names = FALSE)
+#write.csv(x = all_august_tweets, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august_pred.csv", append = FALSE, row.names = FALSE)
 #write_feather(all_august_tweets, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august_pred.feather")
 
 
-all_august_pred_import = read.csv(x = all_august_tweets, 
-                                  file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august_pred.csv", row.names = FALSE)
-all_august_pred_import = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august_pred.feather")
+
+
 
 
 

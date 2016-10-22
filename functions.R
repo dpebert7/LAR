@@ -1,10 +1,8 @@
 #Ebert/Rider
 #Updated 23 March 2016
 
-
 # Storage directory for loading R objects
-#setwd("/home/david/Desktop/Documents/GitRepos/LAR")
-setwd("C:/Users/000678922/Desktop/LAR")
+setwd("/home/david/Desktop/Documents/GitRepos/LAR")
 storage.directory = "~/Desktop/Huang Research/LAR/"
 github.directory = "~/Desktop/Documents/GitRepos/LAR"
 
@@ -12,15 +10,6 @@ github.directory = "~/Desktop/Documents/GitRepos/LAR"
 library(stringr) #library for str_count function
 library(ggplot2) #for graphs
 library(caret) #for confusionMatrix
-
-#library(tm) # for building term frequency matrix from corpus
-#library(cldr) # for detecting tweet language
-#library(beepr) # for beeping, just use beepr::beep(3)
-
-#library(e1071) # for naive bayes model
-#library(pROC) #ROC curves
-#library(randomForest)
-#library(rpart)
 
 
 #AFINN_lexicon
@@ -64,19 +53,10 @@ library(caret) #for confusionMatrix
   
 
 
-
-
-
-
 AFINN_lexicon.frequencies=function(x){
   str_count(x,AFINN_lexicon$word.clean)
 }
 
-
-
-ndsi.frequencies=function(x){
-  str_count(x,freq.all$word[1:nrow(freq.all)])
-}
 
 
 
@@ -91,18 +71,25 @@ bin.maker = function(binsize, max){
 }
 
 
+ndsi.frequencies=function(x){
+  str_count(x,ndsi_lexicon_df$word[1:nrow(ndsi_lexicon_df)])
+}
 
-classify.polarity.machine = function(documents, chunk.size = 5000, model = rf.model){
+
+classify.polarity.machine = function(tweet_df, chunk.size = 5000, ndsi_lexicon, model = rf.model){
+  
   require(plyr)
   require(dplyr)
   require(randomForest)
-  load(file = paste(storage.directory, "rf.model.RData", sep = ""))
-  load(paste(storage.directory,"freq.all.RData", sep = "")) # load freq.all lexicon into memory as freq.all
-  ndsi_lexicon = freq.all[1:1024,]
+  #load(file = paste(storage.directory, "rf.model.RData", sep = ""))
+  #load(paste(storage.directory,"freq.all.RData", sep = "")) # load freq.all lexicon into memory as freq.all
+  #ndsi_lexicon = freq_all[1:1024,]
+  
+  documents = tweet_df$text
   
   if(length(documents)<chunk.size){stop("chunk.size must be less than length(documents). Also, length(documents) must be at least 2.")}
   
-  column.names = paste("X", 1:1024, sep = "")
+  column.names = paste("X", 1:500, sep = "")
   result = NULL
   
   chunks = bin.maker(chunk.size, length(documents))
@@ -115,6 +102,8 @@ classify.polarity.machine = function(documents, chunk.size = 5000, model = rf.mo
                          ndsi.frequencies))
     
     colnames(term.freq) = column.names
+    term.freq = cbind(tweet_df[i,c("afinn_score", "count_hashtags", "count_usernames", "count_url")], term.freq)
+    
     pred.sentiment = predict(model, newdata = term.freq, type = "prob")
     result = c(result, pred.sentiment[,1])
   }
@@ -124,39 +113,17 @@ classify.polarity.machine = function(documents, chunk.size = 5000, model = rf.mo
 
 
 
-
-
-#Optimize cutoff value for classifier scores
-optimize.cutoff = function(score.vec, polarity.vec, min = -10, max = 10, step = 1){
-  require(caret)
-  require(pROC)
-  cutoffs = seq(min, max, by = step)
-  accuracy.vec=1:length(cutoffs)
-  for(i in 1:length(cutoffs)){
-    accuracy.vec[i] = confusionMatrix(as.numeric(score.vec>=(cutoffs[i])),polarity.vec)$overall[1]
-  }
-  print(plot(roc(polarity.vec, score.vec)))
-  print(accuracy.vec)
-  optimal.cutoff = cutoffs[which.max(accuracy.vec)]
-  print(confusionMatrix(as.numeric(score.vec>=(optimal.cutoff)),polarity.vec)$overall[1])
-  return(optimal.cutoff)
-}
-
-
-
-
-
-
-
-
 #############################################################
 ###### Remove Unnecessary Raw columns
 #############################################################
 
 remove_raw_columns = function(tweet_data_frame){
+  require(stringr)
   
   #Keep only necessary columns from among the 42 provided by raw data
-  tweet_data_frame = tweet_data_frame[,c("text", "screen_name", "id_str", "place_lat", "place_lon", "created_at")]
+  tweet_data_frame = tweet_data_frame[,c("text", "screen_name", "id_str", 
+                                         "place_lat", "place_lon", "created_at", 
+                                         "in_reply_to_status_id_str")]
   
   #Rename place_lat to lat
   tweet_data_frame$lat = tweet_data_frame$place_lat
@@ -166,6 +133,18 @@ remove_raw_columns = function(tweet_data_frame){
   tweet_data_frame$lon = tweet_data_frame$place_lon
   tweet_data_frame$place_lon = NULL
   
+  #Rename in_reply_to_status_id
+  #tweet_data_frame$is_reply = 1-is.na(temp_df$in_reply_to_user_id_str)
+  #tweet_data_frame$in_reply_to_status_id_str = NULL
+  
+  #Add columns for hashtags, usernames, and url
+  dict <- c("#", "@", "https")
+  counts = lapply(dict, str_count, string=tweet_data_frame$text)
+  
+  tweet_data_frame$count_hashtags = counts[[1]]
+  tweet_data_frame$count_usernames = counts[[2]]
+  tweet_data_frame$count_url = counts[[3]]
+
   return(tweet_data_frame)
 }
 
@@ -188,27 +167,62 @@ remove_spanish_tweets = function(tweet_data_frame){
 }
 
 
+
 #############################################################
 ###### Identify emoticon tweets within a data frame
 #############################################################
-
 
 identify_emoticons = function(tweet_data_frame){
   
   #initialize polarity column
   tweet_data_frame$polarity = NA
+  
+  #Rewrite text for identifying emoticons:
+  tweet_data_frame$text = iconv(tweet_data_frame$text, "latin1", "ASCII", "byte")
 
   # Emoticons to use
-  sad_emoticons = c("\\:\\(", "\\:-\\(", "\\)\\:", "\\)-\\:", ":\\[", ":\\{", "\\}:","=\\(", "\\)=", "☹")
-  happy_emoticons = c("\\:\\)" , "\\(\\:", "\\:-\\)", "\\(-\\:", "\\:D", "\\:-D", "=\\)", "\\(=", "☺", "☻")
+  sad_emoticons = c("\\:\\(", "\\:-\\(", "\\)\\:", "\\)-\\:", ":\\[", ":\\{", "\\}:","=\\(", "\\)=", "☹",
+                    "<ed><a0><bd><ed><b8><a0>", #Angry face
+                    "<ed><a0><bd><ed><b8><a7>", #Anguished face
+                    "<ed><a0><bd><ed><b6><95><ed><a0><bc><ed><bf><bd>", #Middle finger
+                    "<ed><a0><bd><ed><b2><a2>", #Anger symbol
+                    "<ed><a0><bd><ed><b8><ad>", #Loudly crying face  <- This one is MASSIVE! #5 on emojitracker
+                    "<ed><a0><bd><ed><b8><92>", #Unamused face
+                    "<ed><a0><bd><ed><b8><b0>", #FACE WITH OPEN MOUTH AND COLD SWEAT
+                    "<ed><a0><bd><ed><b8><a9>", #WEARY FACE
+                    "<ed><a0><bd><ed><b2><94>", #BROKEN HEART
+                    "<ed><a0><bd><ed><b8><91>", #EXPRESSIONLESS FACE
+                    "<ed><a0><bd><ed><b8><ab>", #TIRED FACE
+                    "<ed><a0><bd><ed><b8><9e>"  #DISAPPOINTED FACE
+  )
   
+  happy_emoticons = c("\\:\\)" , "\\(\\:", "\\:-\\)", "\\(-\\:", "\\:D", "\\:-D", "=\\)", "\\(=", "☺", "☻",
+                      "<ed><a0><bd><ed><b8><82>", #Face with tears of joy #1 on emojitracker!
+                      "<e2><98><ba><ef><b8><8f>", #Smiling face
+                      "<e2><9d><a4>", #Heavy black heart
+                      "<e2><99><a5>", #Black hearts suit
+                      "<ed><a0><bd><ed><b8><8d>", #Smiling face with heart-shaped eyes
+                      "<ed><a0><bd><ed><b8><8a>", #Smiling face with smiling eyes
+                      "<ed><a0><bd><ed><b1><8e>", #THUMBS DOWN SIGN
+                      "<ed><a0><bd><ed><b8><98>", #FACE THROWING A KISS
+                      "<ed><a0><bd><ed><b2><95>", #TWO HEARTS
+                      "<ed><a0><bd><ed><b1><8d>", #THUMBS UP SIGN
+                      "<ed><a0><bd><ed><b8><86>"  #SMILING FACE WITH OPEN MOUTH AND TIGHTLY-CLOSED EYES
+  )
+  
+                    
   # grep everything all at once
   sad_indices = grep(paste(sad_emoticons, collapse = "|"), tweet_data_frame$text, value = FALSE)
   happy_indices = grep(paste(happy_emoticons, collapse = "|"),tweet_data_frame$text, value = FALSE)
+  conflicts = intersect(happy_indices, sad_indices)
+
+  sad_indices = setdiff(sad_indices, conflicts)
+  happy_indices = setdiff(happy_indices, conflicts)  
   
-  # Mark sad tweets FALSE, happy tweets TRUE
-  tweet_data_frame$polarity[sad_indices] = FALSE
-  tweet_data_frame$polarity[happy_indices] = TRUE
+  
+  # Mark sad tweets 0, happy tweets 1
+  tweet_data_frame$polarity[sad_indices] = 0
+  tweet_data_frame$polarity[happy_indices] = 1
   
   return(tweet_data_frame)
 }
@@ -237,9 +251,12 @@ clean.tweets = function(documents,
     documents = gsub("\\#", hashToken, documents) #tokenize #. Not necessary for tweets that haven't been classified yet.
     documents = gsub(paste(happy_emoticons, collapse = "|"), happyToken, documents) #tokenize happy emoticons
     documents = gsub(paste(sad_emoticons, collapse = "|"), sadToken, documents) #tokenize sad emoticons
+    
+    # REMOVE STUFF IN BRACKETS
+    documents = gsub("<.*>", "", documents) #remove punctuation
     documents = gsub("[[:punct:]]", "", documents) #remove punctuation
-    documents = gsub("[[:digit:]]", "", documents) #remove numbers
-    documents = gsub("[^a-zA-Z]", " ", documents) #remove everything that isn't a letter
+    #documents = gsub("[[:digit:]]", "", documents) #remove numbers
+    #documents = gsub("[^a-zA-Z]", " ", documents) #remove everything that isn't a letter
     documents = tolower(documents) #set lower case
     documents<-gsub('([[:alpha:]])\\1+', '\\1\\1', documents) # limit character repeats to maximum 2
     documents<-trimws(documents) #remove leading and trailing whitespace
@@ -253,11 +270,11 @@ clean.tweets = function(documents,
 ###### Import tweets from .json files
 #############################################################
 
-
 lexicon_sentiment_score = function(documents, lexicon = AFINN_lexicon){
   require(plyr)
   require(dplyr)
-  negations = c("no", "not","none","nobody","nothing","neither","never","doesnt","isnt","wasnt","shouldnt","wouldnt", "couldnt","wont","cant","dont")
+  negations = c("no", "not","none","nobody","nothing","neither","never","doesnt",
+                "isnt","wasnt","shouldnt","wouldnt", "couldnt","wont","cant","dont")
   sentscorevec = laply(documents, function(documents, lex = lexicon)
   {
     words = unlist(strsplit(documents, " ")) #access words
@@ -287,93 +304,102 @@ lexicon_sentiment_score = function(documents, lexicon = AFINN_lexicon){
 
 
 
-
 #############################################################
 ###### Import tweets from .json files
 #############################################################
 
-#raw_file_path = "~/Desktop/Huang Research/September_LaPY_data/raw_data/"
-#feather_file_path = "~/Desktop/Huang Research/September_LaPY_data/feather_data/"
-#csv_file_path = "~/Desktop/Huang Research/September_LaPY_data/csv_data/"
+#raw_file_path = "~/Desktop/Huang Research/LAR_Data/raw_data/"
+#feather_file_path = "~/Desktop/Huang Research/LAR_Data/feather_data/"
+#csv_file_path = "~/Desktop/Huang Research/LAR_Data/csv_data/"
 #max_tweets_per_file = 1000000  # make sure this number is significantly above the number of tweets per file, about 200k
 
-import_tweets_from_json = function(base_file_path = "C:/Users/000678922/Desktop/LAR_data",
+import_tweets_from_json = function(months_to_import,
+                                   base_file_path = "~/Desktop/Huang Research/LAR_Data",
                                    raw_file_path = "raw_data/",
                                    feather_file_path = "feather_data/",
                                    csv_file_path = "csv_data/",
-                                   max_tweets_per_file = 1000000){
+                                   max_tweets_per_file = 2000000){
   require(streamR)
   require(feather)
   
   keep_df = data.frame()
-  j=1
   setwd(base_file_path)
-  
-  for(i in list.files(path = raw_file_path)){
-    print(paste("Reading ", i, "...", sep = ""))
+  for(month in months_to_import){
+    j=1
+    files_to_import = list.files(path = paste(raw_file_path, month, sep = ""))
+    print(paste("These are the files to be imported from ", month, sep = ""))
+    print(files_to_import)
     
-    #Import one .json file into R as data frame
-    temp_df = parseTweets(tweets = paste(raw_file_path, i, sep = ""))
-    
-    #Remove unnecessary raw columns
-    temp_df = remove_raw_columns(temp_df)
-    
-    #Remove very spanish sounding tweets
-    temp_df = remove_spanish_tweets(temp_df)
-    
-    #Identify happy and sad emoticons in tweets before cleaning.
-    #Happy tweets have polarity marked as TRUE; Sad tweets have polarity marked as FALSE
-    print(paste("Identifying happy and sad emoticons in ", i, "...", sep = ""))
-    temp_df = identify_emoticons(temp_df)
-    
-    #Clean, lowercase, remove url's and tokenize text
-    print(paste("Cleaning tweets from ", i, "...", sep = ""))
-    temp_df$text = clean.tweets(documents = temp_df$text, 
-                                happyToken = " ", 
-                                sadToken = " ")
-    
-    #Remove rows with no text
-    temp_df = temp_df[temp_df$text!="",]
-    
-    #Find AFINN score for new tweets
-    print(paste("Finding AFINN scores for ", i, "...", sep = ""))
-    temp_df$afinn_score = lexicon_sentiment_score(temp_df$text)
-    
-    
-    #Combine temp_df and keep_df
-    keep_df = rbind(keep_df, temp_df)
-    
-    #If keep_df is too big OR if last file then write max_tweets_per_file tweets from keep_df to file
-    if(nrow(keep_df) >= max_tweets_per_file | i==tail(list.files(path = raw_file_path),1)){
+    for(i in files_to_import){
+      print(paste("Reading ", raw_file_path, month, i, "...", sep = ""))
       
-      print("Writing to file...")
-      if (nrow(keep_df)>max_tweets_per_file) {
+      #Import one .json file into R as data frame
+      temp_df = parseTweets(tweets = paste(raw_file_path, month, i, sep = ""))
+      
+      #Remove unnecessary raw columns
+      temp_df = remove_raw_columns(temp_df)
+      
+      #Remove very spanish sounding tweets
+      temp_df = remove_spanish_tweets(temp_df)
+      
+      #Identify happy and sad emoticons in tweets before cleaning.
+      #Happy tweets have polarity marked as TRUE; Sad tweets have polarity marked as FALSE
+      print(paste("Identifying happy and sad tweets in ", i, "...", sep = ""))
+      temp_df = identify_emoticons(temp_df)
+      
+      #Clean, lowercase, remove url's and tokenize text
+      print(paste("Cleaning tweets from ", i, "...", sep = ""))
+      temp_df$text = clean.tweets(documents = temp_df$text, 
+                                  happyToken = " ", 
+                                  sadToken = " ")
+      
+      #Remove rows with no text
+      temp_df = temp_df[temp_df$text!="",]
+      
+      #Find AFINN score for new tweets
+      print(paste("Finding AFINN scores for ", i, "...", sep = ""))
+      temp_df$afinn_score = lexicon_sentiment_score(temp_df$text)
+      
+      #Combine temp_df and keep_df
+      keep_df = rbind(keep_df, temp_df)
+      
+      #If keep_df is too big, then write max_tweets_per_file tweets from keep_df to file
+      if(nrow(keep_df) > max_tweets_per_file){
+        
+        #Rewrite data frames
         write_df = keep_df[1:max_tweets_per_file,]
         keep_df = keep_df[(max_tweets_per_file+1):nrow(keep_df),]
-      }
-      else {
-        print("Wow! Either this is really unusual, or it's almost time to be done!")
-        write_df = keep_df
-        keep_df = data.frame()
+
+        # Now write max_tweets_per_file # of tweets to file from write_df and let keep_df keep collecting batches of tweets
+        print(paste("Writing", nrow(write_df), "Tweets to file", sep = " "))
+        write_feather(x = write_df, path = paste(feather_file_path, month, j, ".feather", sep=""))
+        write.csv(x = write_df, file = paste(csv_file_path, month, j, ".feather", sep=""), row.names = FALSE)
+        write_df = NULL
+        j = j+1
       }
       
-      # Now write max_tweets_per_file # of tweets to file from write_df and let keep_df keep collecting batches of tweets
-      print(paste("Writing", nrow(write_df), "Tweets to file", sep = " "))
-      write_feather(x = write_df, path = paste(feather_file_path, j, ".feather", sep=""))
-      write.csv(x = write_df, file = paste(csv_file_path, j, ".csv", sep=""))
-      write_df = NULL
-      j = j+1
+      #If in last , then write max_tweets_per_file tweets from keep_df to file
+      if(i==files_to_import[length(files_to_import)]){
+        print(paste("Writing final tweets from ", month, " to file...", sep = ""))
+        write_df = keep_df
+        keep_df = data.frame()
+        
+        # Write tweets to file
+        print(paste("Writing", nrow(write_df), "Tweets to file", sep = " "))
+        write_feather(x = write_df, path = paste(feather_file_path, month, j, ".feather", sep=""))
+        write.csv(x = write_df, file = paste(csv_file_path, month, j, ".csv", sep=""), row.names = FALSE)
+        write_df = NULL
+        j = 1
+      }
     }
   }
 }
 
 
 
-
 #############################################################
 ###### Build emoticon semi-supervised data set
 #############################################################
-
 
 extract_emoticon_tweets = function(tweet_data_frame){
   happy_tweets = subset(tweet_data_frame, polarity == TRUE)
@@ -383,11 +409,12 @@ extract_emoticon_tweets = function(tweet_data_frame){
   sample_size = min(nrow(happy_tweets),nrow(sad_tweets))
   happy_indices = sample(nrow(happy_tweets), sample_size)
   sad_indices = sample(nrow(sad_tweets), sample_size)
+  print(paste("Creating emoticon_tweets from", nrow(happy_indices), 
+              "happy tweets and", nrow(sad_indices), "sad tweets..."))
   
   emoticon_tweets = rbind(happy_tweets[happy_indices,],sad_tweets[sad_indices,])
   return(emoticon_tweets)
 }
-
 
 
 
@@ -418,13 +445,15 @@ word_frequency <- function(document.vector, sparsity = .99){
 
 
 
-
 #############################################################
 ###### Build ndsi_lexicon words from emoticon
 #############################################################
 
-
-emoticon_to_rf_classifier = function(emoticon_tweets, word_sparsity = 0.9999, smoothing_alpha = 2^7){
+make_ndsi_lexicon = function(emoticon_tweets, 
+                                     word_sparsity = 0.9999, 
+                                     smoothing_alpha = 2^7, 
+                                     max_words = 500, 
+                                     min_ndsi_score = 0.01){
   require(tm)
   
   #Collect word frequencies in happy and sad tweets
@@ -458,6 +487,17 @@ emoticon_to_rf_classifier = function(emoticon_tweets, word_sparsity = 0.9999, sm
   ndsi_lexicon$word = as.character(ndsi_lexicon$word)
   ndsi_lexicon = ndsi_lexicon[ndsi_lexicon$ndsi>0,] # restrict to words with a nonzero ndsi score.
 
+  
+  # Finally, trim ndsi_lexicon in case it's too long
+  # Min ndsi score
+  ndsi_lexicon = subset(ndsi_lexicon, ndsi>=min_ndsi_score)
+  
+  # Max words
+  if (nrow(ndsi_lexicon)>max_words){
+    ndsi_lexicon = ndsi_lexicon[1:max_words,]
+  }
+  
+  
   #Write to feather? If so add this feature later
   #
   #
@@ -469,25 +509,13 @@ emoticon_to_rf_classifier = function(emoticon_tweets, word_sparsity = 0.9999, sm
 
 
 
-
-
-
 #############################################################
 ###### Build a Bag of Words random forest classifier from emoticon_tweets
 #############################################################
 
 
-make_term_freq = function(emoticon_tweets, ndsi_lexicon, max_words = 98, min_ndsi_score = 0.01){
+make_term_freq = function(emoticon_tweets, ndsi_lexicon){
   
-  # Begin by trimming ndsi_lexicon in case it's too long
-  # Min ndsi score
-  ndsi_lexicon = subset(ndsi_lexicon, ndsi>=min_ndsi_score)
-  
-  # Max words
-  if (nrow(ndsi_lexicon)>max_words){
-    ndsi_lexicon = ndsi_lexicon[1:max_words,]
-  }
-
   # Function for apply statement
   ndsi.frequencies=function(x){
     str_count(x,ndsi_lexicon$word[1:nrow(ndsi_lexicon)])
@@ -498,7 +526,12 @@ make_term_freq = function(emoticon_tweets, ndsi_lexicon, max_words = 98, min_nds
                                 ndsi.frequencies))
   
   # Append target variable and afinn scores
-  emoticon_term_freq = data.frame(polarity=emoticon_tweets$polarity, AFINN = emoticon_tweets$afinn_score, emoticon_term_freq)
+  emoticon_term_freq = data.frame(polarity=emoticon_tweets$polarity, 
+                                  afinn_score = emoticon_tweets$afinn_score, 
+                                  count_hashtags = emoticon_tweets$count_hashtags,
+                                  count_usernames = emoticon_tweets$count_usernames,
+                                  count_url = emoticon_tweets$count_url,
+                                  emoticon_term_freq)
 
   return(emoticon_term_freq)
 }
@@ -509,60 +542,105 @@ make_term_freq = function(emoticon_tweets, ndsi_lexicon, max_words = 98, min_nds
 #############################################################
 
 
-make_rf_classifier = function(emoticon_term_freq, train_frac = 0.03, test_frac = 0.03){
+make_rf_classifier = function(emoticon_term_freq, ndsi_lexicon, ntrain = 100, ntest = 100){
   require(ggplot2)
   require(randomForest)
   require(caret)
   require(pROC)
   
-  train_indices = sample(nrow(emoticon_term_freq), train_frac*nrow(emoticon_term_freq))
-  test_indices = sample(nrow(emoticon_term_freq), test_frac*nrow(emoticon_term_freq))
+  train_indices = sample(nrow(emoticon_term_freq), min(ntrain, nrow(emoticon_term_freq)))
+  test_indices = setdiff(1:nrow(emoticon_term_freq), train_indices)
+  #test_indices = sample(nrow(emoticon_term_freq), min(ntest, nrow(emoticon_term_freq)))
   
   emoticon_term_freq$polarity = as.factor(emoticon_term_freq$polarity) 
   
-  rf_model=randomForest(polarity~.,data = emoticon_term_freq[train_indices,])
+  rf_model = randomForest(polarity~.,data = emoticon_term_freq[train_indices,])
+  #rf_model = rf_model$model
+  
+  print("Optimizing cutoff value")
   
   #train accuracy
-  train_conf_matrix = rf_model$confusion
-  train_accuracy = sum(diag(train_conf_matrix))/sum(train_conf_matrix)
+  train_phat = predict(rf_model, newdata = emoticon_term_freq[train_indices,], type = "prob")
+  train_cutoff_info = optimize_rf_cutoff(score.vec = train_phat[,2], polarity.vec = emoticon_term_freq[train_indices,"polarity"], 
+                                        min = 0.3, max = 0.7, step = 0.0001)
+  train_cutoff = train_cutoff_info$optimal_cutoff
+  train_accuracy = train_cutoff_info$accuracy
   
   #train AUC
-  train_phat = predict(rf_model, newdata = emoticon_term_freq[train_indices,], type = "prob")
   train_auc = roc(emoticon_term_freq$polarity[train_indices],train_phat[,2])$auc
   
+
   #test accuracy
-  test_pred = predict(rf_model, newdata = emoticon_term_freq[test_indices,])
-  test_conf_matrix = confusionMatrix(emoticon_term_freq$polarity[test_indices],test_pred)$table
-  test_accuracy = sum(diag(test_conf_matrix)/sum(test_conf_matrix))
+  test_phat = predict(rf_model, newdata = emoticon_term_freq[test_indices,], type = "prob")
+  test_cutoff_info = optimize_rf_cutoff(score.vec = test_phat[,2], polarity.vec = emoticon_term_freq[test_indices,"polarity"], 
+                                      min = 0.3, max = 0.7, step = 0.0001)
+  test_cutoff = test_cutoff_info$optimal_cutoff
+  test_accuracy = test_cutoff_info$accuracy
   
   #test AUC
-  test_phat = predict(rf_model, newdata = emoticon_term_freq[test_indices,], type = "prob")
   test_auc = roc(emoticon_term_freq$polarity[test_indices],test_phat[,2])$auc
+
+  
   
   #Sent140
-  sent140_term_freq = make_term_freq(get_sent140(), ndsi_lexicon)
-  sent140_pred = as.factor(predict(rf_model, newdata = sent140_term_freq))
+  sent140 = get_sent140()
+  sent140_term_freq = make_term_freq(sent140, ndsi_lexicon)
   sent140_phat = predict(rf_model, newdata = sent140_term_freq, type = "prob")
+  sent140_cutoff_info = optimize_rf_cutoff(score.vec = sent140_phat[,2], polarity.vec = as.numeric(sent140$polarity)-1, 
+                                      min = 0.3, max = 0.7, step = 0.0001)
   
   # Accuracy and AUC
-  sent140_conf_matrix = confusionMatrix(sent140$polarity,sent140_pred)
-  sent140_auc = roc(emoticon_term_freq$polarity[train_indices],train_phat[,2])$auc
-
+  sent140_cutoff = sent140_cutoff_info$optimal_cutoff
+  sent140_accuracy = sent140_cutoff_info$accuracy
+  sent140_auc = roc(sent140_term_freq$polarity,sent140_phat[,2])$auc
+  
+  return(list(
+    "ntrain" = length(train_indices),
+    "train_accuracy" = train_accuracy,
+    "train_auc" = train_auc,
+    "train_optimal_cutoff" = train_cutoff,
+    "ntest" = length(test_indices),
+    "test_accuracy" = test_accuracy,
+    "test_auc" = test_auc, 
+    "test_optimal_cutoff" = test_cutoff,
+    "sent140_accuracy" = sent140_accuracy,
+    "sent140_auc" = sent140_auc,
+    "sent140_cutoff" = sent140_cutoff,
+    #"sent140_phat" = sent140_phat,
+    #"sent140_actual" = sent140_term_freq$polarity,
+    "model" = rf_model))
 }
 
- 
+
+
+#############################################################
+#Optimize cutoff value for classifier scores
+#############################################################
+optimize_rf_cutoff = function(score.vec, polarity.vec, min = 0, max = 10, step = 1){
+  require(caret)
+  require(pROC)
+  cutoffs = seq(min, max, by = step)
+  accuracy.vec=1:length(cutoffs)
+  for(i in 1:length(cutoffs)){
+    accuracy.vec[i] = confusionMatrix(as.numeric(score.vec>=(cutoffs[i])),polarity.vec)$overall[1]
+  }
+  print(plot(roc(polarity.vec, score.vec)))
+  print(accuracy.vec)
+  optimal.cutoff = cutoffs[which.max(accuracy.vec)]
+  accuracy = confusionMatrix(as.numeric(score.vec>=(optimal.cutoff)),polarity.vec)$overall[1]
+  return(list(
+    "optimal_cutoff" = optimal.cutoff,
+    "accuracy" = accuracy))
+}
+
 
 
 
 
 
 #############################################################
-###### Apply rf_model to tweets
+###### Get sent140 testing data
 #############################################################
-
-
-
-
 
 get_sent140 = function(){
   
@@ -576,24 +654,106 @@ get_sent140 = function(){
   sent140[sent140$polarity == 0,]$polarity = FALSE
   sent140[sent140$polarity == 4,]$polarity = TRUE
   
+  dict <- c("#", "@", "https")
+  counts = lapply(dict, str_count, string=sent140$raw_text)
+  sent140$count_hashtags = counts[[1]]
+  sent140$count_usernames = counts[[2]]
+  sent140$count_url = counts[[3]]
+  
   #clean text
-  sent140 = sent140[sent140$polarity !=2, c("polarity", "raw_text")]
+  sent140 = sent140[sent140$polarity !=2, c("polarity", "raw_text", "count_hashtags", "count_usernames", "count_url")]
   sent140$polarity = as.factor(sent140$polarity)
   sent140$text = clean.tweets(sent140$raw_text)
   
+  #Add columns for hashtags, usernames, and url
+  dict <- c("#", "@", "https")
+  counts = lapply(dict, str_count, string=sent140$text)
+  sent140$count_hashtags = counts[[1]]
+  sent140$count_usernames = counts[[2]]
+  sent140$count_url = counts[[3]]
+  
   #afinn_score
   sent140$afinn_score = lexicon_sentiment_score(sent140$text)
-  
   return(sent140)
 }
 
 
 
+#############################################################
+###### Test Sent140 testing data
+#############################################################
+
+### GET RID OF THIS ONCE THE OTHER STUFF PROVES TO WORK BETTER.
+
+test_sent140 = function(train_frac){
+  sent140 = get_sent140()
+  
+  #Pick training and test
+  train_indices = sample(nrow(sent140), train_frac*nrow(sent140))
+  test_indices = setdiff(1:nrow(sent140), train_indices)
+  train_tweets = sent140[train_indices,]
+  test_tweets = sent140[test_indices,]
+  
+  #Make NDSI lexicon
+  ndsi_lexicon = make_ndsi_lexicon(emoticon_tweets = train_tweets)
+  
+  #make term_freq
+  term_freq = make_term_freq(train_tweets, ndsi_lexicon)
+  
+  #Build random forest classifier
+  make_rf_classifier(term_freq, ndsi_lexicon, ntrain = 10000, ntest = 5000)
+
+}
+
+#############################################################
+###### Build classifier from feather file 
+#############################################################
+
+build_classifier_from_tweets = function(tweet_df, ntrain = 10000, ntest = 5000, ...){
+  require(feather)
+  require(tools)
+  
+  # Extract emoticon tweets from tweet_df
+  emoticon_df = extract_emoticon_tweets(tweet_df)
+  print(paste("Finished extracting", nrow(emoticon_df),"emoticon tweets and building NDSI lexicon using tweets from tweet_df..."))
+
+  # Make ndsi lexicon
+  ndsi_lexicon_df = make_ndsi_lexicon(emoticon_df, ...)
+  
+  # Make term-frequency data frame
+  emoticon_term_freq = make_term_freq(emoticon_df, ndsi_lexicon_df, ...)
+  print(paste("Finished making term-frequency data frame from tweet_df with", ncol(emoticon_term_freq)-5, "NDSI words..."))
+  
+  # Build Random Forest Classifier
+  print("Building random forest classifier...")
+  result = make_rf_classifier(emoticon_term_freq, ndsi_lexicon_df, ntrain = ntrain, ntest = ntest)
+  return(result)
+}
 
 
 
 
+#############################################################
+###### Make tweet data frame from feather data -- THIS IS OBSOLETE!!!
+#############################################################
+
+make_tweet_df = function(feather_file_names, base_path = "~/Desktop/Huang Research/September_LaPY_data/feather_data/"){
+  tweet_df = data.frame()
+  for(i in feather_file_names){
+    print(paste(base_path,as.character(i),".feather", sep = ""))
+    x = read_feather(paste(base_path,as.character(i),".feather", sep = ""))
+    tweet_df = rbind(tweet_df, x)
+  }
+  return(tweet_df)
+}
 
 
 
+#############################################################
+###### Apply rf_model to tweets
+#############################################################
+
+classify_tweets = function(model, tweet_df, ndsi_lexicon){
+  return(NA)
+}
 
