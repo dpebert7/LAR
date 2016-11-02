@@ -13,6 +13,8 @@ import_new.R: Script for processing, cleaning, and classifying tweets.
 
 lamap.R: Make plots for tweets from August 2015.
 
+animation.R: Create animated map visualization of LA county.
+
 
 ### Research
 
