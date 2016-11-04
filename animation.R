@@ -45,7 +45,7 @@ all_august_pred_import = all_august_pred_import[all_august_pred_import$created_a
 all_august_pred_import = all_august_pred_import[all_august_pred_import$created_at$mday<=29,] # remove tweets from the 30th and 31st
 length(table(all_august_pred_import$created_at$mday)) #28 days of month used
 
-
+table(all_august_pred_import$created_at$mday)
 table(all_august_pred_import$created_at$wday)
 table(all_august_pred_import$created_at$hour)
 
@@ -55,8 +55,9 @@ table(all_august_pred_import$created_at$hour)
 #############################################################
 
 # Initialize ggmap called basemap
-la_box = c(-119.5, 32.8, -116.8, 35.5)
-LA_map = get_map(la_box, maptype = 'roadmap', color = 'bw')
+#la_box = c(-119.5, 32.8, -116.8, 35.5) #xmax was -116.8
+la_box = c(-119, 33.4, -116.6, 34.8) #xmax was -116.8
+LA_map = get_map(la_box, maptype = 'roadmap', color = 'bw', source = "osm")
 la_county <- subset(map_data("county"), region == 'california' & subregion == 'los angeles')
 orange_county <- subset(map_data("county"), region == 'california' & subregion == 'orange')
 
@@ -65,14 +66,15 @@ basemap = ggmap(LA_map) +
   geom_polygon(data = orange_county, aes(x=long, y=lat, group = group), fill = 'blue', alpha = 0.01, color = "black") +
   xlab("Longitude") +
   ylab('Latitude') +
-  theme(text = element_text(size=16), legend.position = 'right')
+  theme(text = element_text(size=16), legend.position = 'right') #+
 
 
 
 # initialize ggplot called timeline
-time_frames$num_tweets_scaled = time_frames$num_tweets/max(time_frames$num_tweets)
-
 timeline = ggplot(time_frames, aes(x = day_frac, y = num_tweets_scaled, color = "Number of \n tweets")) +
+  geom_rect(aes(xmin=1, xmax=2, ymin=0, ymax=1), color = 'grey85', fill = 'grey90') +
+  geom_rect(aes(xmin=3, xmax=4, ymin=0, ymax=1), color = 'grey85', fill = 'grey90') +
+  geom_rect(aes(xmin=5, xmax=6, ymin=0, ymax=1), color = 'grey85', fill = 'grey90') +
   geom_line(size = 1) +
   geom_line(data = time_frames, aes(x = day_frac, y = avg_sentiment, color = "Average \n polarity"), size = 1) +
   theme_few() +
@@ -83,8 +85,10 @@ timeline = ggplot(time_frames, aes(x = day_frac, y = num_tweets_scaled, color = 
         legend.position = 'left',
         legend.key.size = unit(2, 'lines'),
         text = element_text(size = 16)) +
-  scale_x_continuous(breaks = seq(0,7,0.5), labels = c("","Sun","", "Mon","", "Tue","", "Wed","", "Thu","", "Fri","", "Sat","")) +
-  scale_colour_manual(name = "", values = c("Number of \n tweets" = "red", "Average \n polarity" = "blue"))
+  scale_x_continuous(breaks = seq(0.5,6.5,0.5), 
+                     labels = c("Sun","", "Mon","", "Tue","", "Wed","", "Thu","", "Fri","", "Sat"),
+                     limits = c(0,7), expand = c(0,0)) +
+  scale_color_manual(name = "", values = c("Number of \n tweets" = 'black', "Average \n polarity" = 'grey60'))
 
 
 
@@ -116,7 +120,7 @@ junk$pred_polarity = c(0,1)
 
 
 # Big for loop creating plots!
-a = Sys.time() # about 30 mins
+a = Sys.time() # about 30-45 mins
 for(i in 1:nrow(time_frames)){
   
   # creating a name for each plot file with leading zeros
@@ -139,21 +143,24 @@ for(i in 1:nrow(time_frames)){
   # time_frames$num_tweets[i] = nrow(hour_data)/4
   
   # Map plot
+  plot.title = "Hourly Sentiment Polarity of Geotagged LA County Tweets"
+  plot.subtitle = paste(day, " ", hour, " ~ August 2-29, 2016", sep = "")
   map_plot = basemap +
     geom_point(data = junk, aes(x = lon, y = lat, color = pred_polarity), alpha = 0) + #ensure color gradient
     geom_point(data = prev_prev_hour_data, aes(x = lon, y = lat, color = pred_polarity), alpha = 0.05) + #2 hours old
     geom_point(data = prev_hour_data, aes(x = lon, y = lat, color = pred_polarity), alpha = 0.1) + #1 hour old
     geom_point(data = hour_data, aes(x = lon, y = lat, color = pred_polarity), alpha = 1) + #current hour
-    scale_colour_gradient(low = "red", high = "blue", 
-                          labels = c("negative", "", "neutral", "", "positive"), 
-                          guide = guide_legend(title = NULL)) +
-    ggtitle(paste(day, hour, sep = " "))
+    scale_colour_gradient(low = "blue", high = "red", breaks = c(0,.5,1),
+                          labels = c("negative", "neutral", "positive"), 
+                          guide = guide_legend(title = NULL, reverse = TRUE)) +
+    ggtitle(bquote(atop(.(plot.title), atop(italic(.(plot.subtitle)), "")))) 
   
   # Timeline plot
   timeline_plot = timeline + geom_vline(xintercept = time_frames$day_frac[i], color = 'black', size = 2)
   
   # Combine and save plots
   combined_plot = grid.arrange(map_plot, timeline_plot, ncol = 1, heights = c(7,1))
+  combined_plot
   ggsave(plot = combined_plot, name, path = './images', width = 14, height = 10, units = 'in')
   
   #Move data back an hour
@@ -166,6 +173,7 @@ Sys.time()-a
 #save time_frames to file using feather
 write_feather(x = time_frames, path = 'images/time_frames.feather')
 time_frames = read_feather(path = 'images/time_frames.feather')
+time_frames = as.data.frame(time_frames)
 
 
 
