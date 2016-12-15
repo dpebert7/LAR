@@ -1,0 +1,99 @@
+
+TRIAL 1:
+RF with standard selection; alpha = 2^7
+
+> rf_model$ntrain
+[1] 28000
+> rf_model$train_accuracy
+Accuracy 
+0.8701071 
+> rf_model$test_accuracy
+Accuracy 
+0.736 
+> rf_model$sent140_accuracy
+Accuracy 
+0.7883008 
+
+
+TRIAL 2:
+alpha  = 2^20
+adjusted numerator
+
+> rf_model$train_accuracy
+ Accuracy 
+0.8640714 
+> rf_model$test_accuracy
+ Accuracy 
+0.7288333 
+> rf_model$sent140_accuracy
+ Accuracy 
+0.7743733 
+
+> rf_model$train_accuracy
+ Accuracy 
+0.8626071 
+> rf_model$test_accuracy
+ Accuracy 
+0.7303333 
+> rf_model$sent140_accuracy
+ Accuracy 
+0.7743733 
+
+
+
+TRIAL 3:
+alpha  = 2^20
+standard numerator
+
+> rf_model$train_accuracy
+ Accuracy 
+0.8438214 
+> rf_model$test_accuracy
+ Accuracy 
+0.7376667 
+> rf_model$sent140_accuracy
+ Accuracy 
+0.7855153 
+
+> rf_model$train_accuracy
+ Accuracy 
+0.8431786 
+> rf_model$test_accuracy
+Accuracy 
+  0.7265 
+> rf_model$sent140_accuracy
+ Accuracy 
+0.7743733 
+
+rf_model$train_accuracy
+rf_model$test_accuracy
+rf_model$sent140_accuracy
+
+
+TRIAL 4:
+alpha  = 2^12
+standard numerator
+
+> beepr::beep(3)
+> rf_model$train_accuracy
+ Accuracy 
+0.8848929 
+> rf_model$test_accuracy
+ Accuracy 
+0.7360833 
+> rf_model$sent140_accuracy
+ Accuracy 
+0.7994429 
+
+rf_model$train_accuracy
+rf_model$test_accuracy
+rf_model$sent140_accuracy
+
+rf_model$train_auc
+rf_model$test_auc
+rf_model$sent140_auc
+
+rf_model$train_optimal_cutoff
+rf_model$test_optimal_cutoff
+rf_model$sent140_cutoff
+

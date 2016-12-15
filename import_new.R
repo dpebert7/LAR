@@ -70,7 +70,7 @@ print(paste("Finished extracting", nrow(emoticon_df),"emoticon tweets and buildi
 # Remove all_august_tweets from memory
 rm(all_august_tweets)
 
-# Make emoticon_df using max 10000 rows of emoticon_df, then save to feather file
+# Make emoticon_df using max 40000 rows of emoticon_df, then save to feather file
 indices = as.integer(c(sample(1:nrow(emoticon_df)/2,20000), sample(((nrow(emoticon_df)+2)/2):nrow(emoticon_df),20000)))
 emoticon_df = emoticon_df[indices,]
 # table(emoticon_df$polarity) # Check for balance
@@ -78,18 +78,18 @@ emoticon_df = emoticon_df[indices,]
 #write.csv(x = emoticon_df, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_df.csv", row.names = FALSE)
 #emoticon_df2 = read.csv(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_df.csv") #NOT THE SAME!
 #write_feather(emoticon_df, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_df.feather")
-emoticon_df = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_df.feather") # WHY THIS ERROR??
+#emoticon_df = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_df.feather") # WHY THIS ERROR??
 
 
 # Make ndsi lexicon and save to feather 
-#a = Sys.time()
-ndsi_lexicon_df = make_ndsi_lexicon(emoticon_df, max_words = 500)
+a = Sys.time()
+ndsi_lexicon_df = make_ndsi_lexicon(emoticon_df, max_words = 500, smoothing_alpha = 2^12)
 Sys.time()-a
 
 #write.csv(x = ndsi_lexicon_df, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.csv", row.names = FALSE)
-ndsi_lexicon_df2 = read.csv(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.csv")
+#ndsi_lexicon_df2 = read.csv(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.csv")
 #write_feather(ndsi_lexicon_df, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.feather")
-ndsi_lexicon_df = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.feather")
+#ndsi_lexicon_df = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.feather")
 
 
 # Make term-frequency data frame 
@@ -98,8 +98,8 @@ emoticon_term_freq = make_term_freq(emoticon_df, ndsi_lexicon_df)
 #write.csv(x = emoticon_term_freq, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_term_freq.csv", row.names = FALSE)
 #emoticon_term_freq2 = write.csv(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_term_freq.csv") # NOT THE SAME!!!
 #write_feather(emoticon_term_freq, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_term_freq.feather")
-emoticon_term_freq = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_term_freq.feather")
-#print(paste("Finished making term-frequency data frame from tweet_df with", ncol(emoticon_term_freq)-5, "NDSI words..."))
+#emoticon_term_freq = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/emoticon_term_freq.feather")
+#print(paste("Finished making term-frequency data frame from tweet_df with", ncol(emoticon_term_freq)-6, "NDSI words..."))
 
 
 # Build Random Forest Classifier and write to file <- This takes some time...
@@ -111,11 +111,13 @@ rf_model = make_rf_classifier(emoticon_term_freq, ndsi_lexicon_df, ntrain = 2800
 # Takes 13 mins with ntrain = 10000
 # Takes 35 mins with ntrain = 20000
 # Takes 1.17 hours with ntrain = 28000
-# save(rf_model, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/rf_model.RData")
-load(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/rf_model.RData")
+save(rf_model, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/rf_model.RData")
+# load(file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/rf_model.RData")
 Sys.time()-a
 beepr::beep(3)
-
+rf_model$train_accuracy
+rf_model$test_accuracy
+rf_model$sent140_accuracy
 
 ################################
 #### Apply rf_model to all_august_tweets
