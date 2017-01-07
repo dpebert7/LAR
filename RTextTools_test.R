@@ -3,7 +3,6 @@
 library(RTextTools)
 
 
-library(RTextTools)
 data(NYTimes)
 data <- NYTimes[sample(1:3100,size=100,replace=FALSE),]
 matrix <- create_matrix(cbind(data["Title"],data["Subject"]), language="english",
@@ -17,3 +16,6 @@ analytics <- create_analytics(container, results)
 
 analytics@label_summary
 analytics@document_summary
+
+
+

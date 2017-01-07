@@ -512,7 +512,7 @@ make_ndsi_lexicon = function(emoticon_tweets,
                                      word_sparsity = 0.9999, 
                                      smoothing_alpha = 2^7, 
                                      max_words = 500, 
-                                     min_ndsi_score = 0.01){
+                                     min_ndsi_score = 0.0001){
   require(tm)
   
   #Collect word frequencies in happy and sad tweets
