@@ -510,8 +510,8 @@ word_frequency <- function(document.vector, sparsity = .99){
 
 make_ndsi_lexicon = function(emoticon_tweets, 
                                      word_sparsity = 0.9999, 
-                                     smoothing_alpha = 2^7, 
-                                     max_words = 500, 
+                                     smoothing_alpha = 2^16, 
+                                     max_words = 2000, 
                                      min_ndsi_score = 0.0001){
   require(tm)
   

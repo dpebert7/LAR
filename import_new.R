@@ -83,7 +83,7 @@ emoticon_df = emoticon_df[indices,]
 
 # Make ndsi lexicon and save to feather 
 a = Sys.time()
-ndsi_lexicon_df = make_ndsi_lexicon(emoticon_df, max_words = 500, smoothing_alpha = 2^12)
+ndsi_lexicon_df = make_ndsi_lexicon(emoticon_df, max_words = 2000, smoothing_alpha = 2^12)
 Sys.time()-a
 
 #write.csv(x = ndsi_lexicon_df, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/ndsi_lexicon_df.csv", row.names = FALSE)
