@@ -23,6 +23,10 @@
   # emoji_term_freq = make_term_freq(emoji_40k, ndsi_lexicon_df)
   # save(emoji_term_freq, file = "~/Desktop/Documents/GitRepos/LAR/compare_models/emoji_term_freq.RData")
   # load(file = "~/Desktop/Documents/GitRepos/LAR/compare_models/emoji_term_freq.RData")
+
+  # emoji_term_freq = make_term_freq(emoji_40k, ndsi_lexicon_df)
+  # save(emoji_term_freq, file = "~/Desktop/Documents/GitRepos/LAR/compare_models/emoji_term_freq.RData")
+  # load(file = "~/Desktop/Documents/GitRepos/LAR/compare_models/emoji_term_freq.RData")
   
   
   # training and test data
@@ -66,8 +70,8 @@
   sent140 = get_sent140()
   load(file = "~/Desktop/Documents/GitRepos/LAR/compare_models/sent140_term_freq.RData")
   
-  ntest = 4000 # Should be set to 28000 for paper tests; 4000 for testing NDSI 
-  indices = small_indices # This is just in case ntest = 4000
+  ntest = 28000 # Should be set to 28000 for paper tests; 4000 for testing NDSI 
+  # indices = small_indices # This is just in case ntest = 4000
   
   
   # set number of training tweets. 28000 is maximum value
@@ -119,20 +123,20 @@
   acc_list4b <- performance(pred4b,"acc")
   max_acc4b = max(unlist(acc_list4b@y.values))
 
-  
 
 
-# Model 5: Tweet Features ----
-  rf_model5 = randomForest(polarity~.,data = emoji_term_freq[sample(indices,ntest),c(1,7:506)])
+
+# Model 5: AFINN + Random Forest Features ----
+  rf_model5 = randomForest(polarity~.,data = emoji_term_freq[sample(indices,ntest),c(1,2)])
   save(rf_model5, file = "~/Desktop/Documents/GitRepos/LAR/compare_models/rf_model6.RData")
   
-  test_phat5a = predict(rf_model5, newdata = emoji_term_freq[-indices,c(1,7:506)], type = "prob")
+  test_phat5a = predict(rf_model5, newdata = emoji_term_freq[-indices,c(1,2)], type = "prob")
   auc5a = roc(emoji_term_freq$polarity[-indices],test_phat5a[,2])
   pred5a = prediction(test_phat5a[,2], emoji_40k$polarity[-indices])
   acc_list5a = performance(pred5a,"acc")
   max_acc5a = max(unlist(acc_list5a@y.values))
   
-  test_phat5b = predict(rf_model5, newdata = sent140_term_freq[-indices,c(1,7:506)], type = "prob")
+  test_phat5b = predict(rf_model5, newdata = sent140_term_freq[-indices,c(1,2)], type = "prob")
   auc5b = roc(sent140_term_freq$polarity[-indices],test_phat5b[,2])
   pred5b = prediction(test_phat5b[,2], sent140$polarity[-indices])
   acc_list5b = performance(pred5b,"acc")
@@ -424,6 +428,56 @@ a = Sys.time()
   Sys.time()-a
   beepr::beep(3)
   a = Sys.time()
+
+  
+  
+# MODEL 10.4: AFINN + tweet features + 250 NDSI ----
+  rf_model10.4 = randomForest(polarity~.,data = emoji_term_freq[sample(indices,ntest),c(1:106)])
+  save(rf_model10.4, file = "~/Desktop/Documents/GitRepos/LAR/compare_models/rf_model10.4.RData")
+  
+  test_phat10.4a = predict(rf_model10.4, newdata = emoji_term_freq[-indices,c(1:106)], type = "prob")
+  auc10.4a = roc(emoji_term_freq$polarity[-indices],test_phat10.4a[,2])
+  pred10.4a = prediction(test_phat10.4a[,2], emoji_40k$polarity[-indices])
+  acc_list10.4a = performance(pred10.4a,"acc")
+  max_acc10.4a = max(unlist(acc_list10.4a@y.values))
+  
+  test_phat10.4b = predict(rf_model10.4, newdata = sent140_term_freq[-indices,c(1:106)], type = "prob")
+  auc10.4b = roc(sent140_term_freq$polarity[-indices],test_phat10.4b[,2])
+  pred10.4b = prediction(test_phat10.4b[,2], sent140$polarity[-indices])
+  acc_list10.4b = performance(pred10.4b,"acc")
+  max_acc10.4b = max(unlist(acc_list10.4b@y.values))
+  
+  print("done with model 10.4")
+  Sys.time()-a
+  beepr::beep(3)
+  a = Sys.time()
+  
+  
+  
+# MODEL 10.5: AFINN + tweet features + 100 NDSI ----
+  rf_model10.5 = randomForest(polarity~.,data = emoji_term_freq[sample(indices,ntest),c(1:256)])
+  save(rf_model10.5, file = "~/Desktop/Documents/GitRepos/LAR/compare_models/rf_model10.5.RData")
+  
+  test_phat10.5a = predict(rf_model10.5, newdata = emoji_term_freq[-indices,c(1:256)], type = "prob")
+  auc10.5a = roc(emoji_term_freq$polarity[-indices],test_phat10.5a[,2])
+  pred10.5a = prediction(test_phat10.5a[,2], emoji_40k$polarity[-indices])
+  acc_list10.5a = performance(pred10.5a,"acc")
+  max_acc10.5a = max(unlist(acc_list10.5a@y.values))
+  
+  test_phat10.5b = predict(rf_model10.5, newdata = sent140_term_freq[-indices,c(1:256)], type = "prob")
+  auc10.5b = roc(sent140_term_freq$polarity[-indices],test_phat10.5b[,2])
+  pred10.5b = prediction(test_phat10.5b[,2], sent140$polarity[-indices])
+  acc_list10.5b = performance(pred10.5b,"acc")
+  max_acc10.5b = max(unlist(acc_list10.5b@y.values))
+  
+  print("done with model 10.5")
+  Sys.time()-a
+  beepr::beep(3)
+  a = Sys.time()
+  
+  
+  
+  
   
   
 
@@ -440,8 +494,12 @@ as.numeric(auc6a$auc); max_acc6a
 as.numeric(auc7a$auc); max_acc7a
 as.numeric(auc8a$auc); max_acc8a
 as.numeric(auc9a$auc); max_acc9a
+as.numeric(auc10.4a$auc); max_acc10.4a
+as.numeric(auc10.5a$auc); max_acc10.5a
 as.numeric(auc10a$auc); max_acc10a
 as.numeric(auc10.1a$auc); max_acc10.1a
+as.numeric(auc10.2a$auc); max_acc10.2a
+as.numeric(auc10.3a$auc); max_acc10.3a
 
 as.numeric(auc11a$auc); max_acc11a
 as.numeric(auc12a$auc); max_acc12a
@@ -456,13 +514,18 @@ as.numeric(auc1b$auc); max_acc1b
 as.numeric(auc2b$auc); max_acc2b
 as.numeric(auc3b$auc); max_acc3b
 as.numeric(auc4b$auc); max_acc4b
+as.numeric(auc5b$auc); max_acc5b
 
 as.numeric(auc6b$auc); max_acc6b
 as.numeric(auc7b$auc); max_acc7b
 as.numeric(auc8b$auc); max_acc8b
 as.numeric(auc9b$auc); max_acc9b
+as.numeric(auc10.4b$auc); max_acc10.4b
+as.numeric(auc10.5b$auc); max_acc10.5b
 as.numeric(auc10b$auc); max_acc10b
 as.numeric(auc10.1b$auc); max_acc10.1b
+as.numeric(auc10.2b$auc); max_acc10.2b
+as.numeric(auc10.3b$auc); max_acc10.3b
 
 as.numeric(auc11b$auc); max_acc11b
 as.numeric(auc12b$auc); max_acc12b
@@ -478,33 +541,37 @@ as.numeric(auc16b$auc); max_acc16b
 ### EMOJI_DF ###
 
 # MODEL   AUC       ACCURACY    MODEL                               TIME TO BUILD
-# 1       0.693     64.5        AFINN lexicon                       Short
-# 2       0.652     61.3        OpinionFinder                       Short
-# 3       0.646     60.8        NRC                                 Short
-# 4       0.702     64.3        ANEW                                Short
+# 1       0.693     & 64.5        AFINN lexicon                       Short
+# 2       0.652     & 61.3        OpinionFinder                       Short
+# 3       0.646     & 60.8        NRC                                 Short
+# 4       0.702     & 64.3        ANEW                                Short
+# 5       0.682     & 64.4        AFINN (with random forest)          Short
 
-# 6       0.668     64.6        Tweet Features                      Short
-# 7       0.742     69.2        AFINN + tweet features              Short
-# 8       0.xxx     xx.x        AFINN + NDSI                        
-# 9       0.xxx     xx.x        tweet features + NDSI               
-# 10      0.830     75.3        AFINN + tweet features + 500 NDSI   11.8 mins
-# 10.1    0.xxx     xx.x        AFINN + tweet features + 1000 NDSI  8 mins
-# 10.2    0.xxx     xx.x        AFINN + tweet features + 1500 NDSI  ??
-# 10.3    0.xxx     xx.x        AFINN + tweet features + 2000 NDSI  ??
 
-# 11      0.756     71.5        NDSI 100                            10.33 mins; ntest = 28000
-# 12      0.806     73.8        NDSI 250                            35.5 mins; ntest = 28000
-# 13      0.xxx     xx.x        NDSI 500                            1.5 hours; ntest = 28000
-# 14      0.xxx     xx.x        NDSI 1000                           3.5 hours; ntest = 28000
-# 15      0.xxx     xx.x        NDSI 1500                           ??; ntest = 28000
-# 16      0.xxx     xx.x        NDSI 2000                           ??; ntest = 28000
+# 6       0.668     & 64.6        Tweet Features                      Short
+# 7       0.742     & 69.1        AFINN + tweet features              Short
+# 8       0.813     & 73.9        AFINN + 500 NDSI                    5 mins
+# 9       0.817     & 74.0        tweet features + 500 NDSI           4.7 mins
+# 10.4    0.817     & 74.4        AFINN + tweet features + 100 NDSI   43 secs
+# 10.5    0.826     & 75.0        AFINN + tweet features + 250 NDSI   1.8 mins
+# 10      0.829     & 75.2        AFINN + tweet features + 500 NDSI   11.8 mins
+# 10.1    0.833     & 75.6        AFINN + tweet features + 1000 NDSI  8 mins    <- Why does this take less time than the model with 500 words?
+# 10.2    0.835     & 75.7        AFINN + tweet features + 1500 NDSI  12 mins
+# 10.3    0.835     & 75.8        AFINN + tweet features + 2000 NDSI  18.6 mins
 
-# 11      0.785     70.9        NDSI 100                            44.4 secs; ntest = 4000
-# 12      0.799     71.9        NDSI 250                            2.2 mins; ntest = 4000
-# 13      0.805     72.9        NDSI 500                            4.5 mins; ntest = 4000
-# 14      0.810     73.2        NDSI 1000                           9.4 mins; ntest = 4000
-# 15      0.814     73.8        NDSI 1500                           14.2 mins; ntest = 4000
-# 16      0.816     73.6        NDSI 2000                           19.3; ntest = 4000
+# 11      0.756     & 71.5        NDSI 100                            10.33 mins; ntest = 28000
+# 12      0.806     & 73.8        NDSI 250                            35.5 mins; ntest = 28000
+# 13      0.xxx     & xx.x        NDSI 500                            1.5 hours; ntest = 28000
+# 14      0.xxx     & xx.x        NDSI 1000                           3.5 hours; ntest = 28000
+# 15      0.xxx     & xx.x        NDSI 1500                           ??; ntest = 28000
+# 16      0.xxx     & xx.x        NDSI 2000                           ??; ntest = 28000
+
+# 11      0.785     & 70.9        NDSI 100                            44.4 secs; ntest = 4000
+# 12      0.799     & 71.9        NDSI 250                            2.2 mins; ntest = 4000
+# 13      0.805     & 72.9        NDSI 500                            4.5 mins; ntest = 4000
+# 14      0.810     & 73.2        NDSI 1000                           9.4 mins; ntest = 4000
+# 15      0.814     & 73.8        NDSI 1500                           14.2 mins; ntest = 4000
+# 16      0.816     & 73.6        NDSI 2000                           19.3 mins; ntest = 4000
 
 
 
@@ -512,30 +579,33 @@ as.numeric(auc16b$auc); max_acc16b
 ### SENTIMENT140 ###
 
 # MODEL   AUC       ACCURACY    MODEL
-# 1       0.840     76.3        AFINN lexicon                   
-# 2       0.779     72.1        OpinionFinder
-# 3       0.743     67.7        NRC          
-# 4       0.824     74.9        ANEW
+# 1       0.840     & 76.3        AFINN lexicon                   
+# 2       0.779     & 72.1        OpinionFinder
+# 3       0.743     & 67.7        NRC          
+# 4       0.824     & 74.9        ANEW
+# 5       0.793     & 75.0        AFINN (With Random Forst)
 
-# 6       0.547     54.8        Tweet Features
-# 7       0.748     75.0        AFINN + tweet features
-# 8       0.xxx     xx.x        AFINN + NDSI
-# 9       0.xxx     xx.x        tweet features + NDSI
-# 10      0.826     75.3        AFINN + tweet features + 500 NDSI
-# 10.1    0.xxx     xx.x        AFINN + tweet features + 1000 NDSI
-# 10.2    0.xxx     xx.x        AFINN + tweet features + 1500 NDSI
-# 10.3    0.xxx     xx.x        AFINN + tweet features + 2000 NDSI
+# 6       0.547     & 54.8        Tweet Features
+# 7       0.754     & 74.7        AFINN + tweet features
+# 8       0.828     & 78.5        AFINN + 500 NDSI
+# 9       0.779     & 74.1        tweet features + 500 NDSI
+# 10.4    0.811     & 76.9        AFINN + tweet features + 100 NDSI
+# 10.5    0.830     & 77.9        AFINN + tweet features + 250 NDSI
+# 10      0.830     & 78.8        AFINN + tweet features + 500 NDSI
+# 10.1    0.825     & 76.3        AFINN + tweet features + 1000 NDSI
+# 10.2    0.825     & 77.6        AFINN + tweet features + 1500 NDSI
+# 10.3    0.820     & 77.0        AFINN + tweet features + 2000 NDSI
 
-# 11      0.660     63.2        NDSI 100    ntest = 28000
-# 12      0.704     68.4        NDSI 250    ntest = 28000
-# 13      0.xxx     xx.x        NDSI 500    ntest = 28000
-# 14      0.xxx     xx.x        NDSI 1000   ntest = 28000
-# 15      0.xxx     xx.x        NDSI 1500   ntest = 28000
-# 16      0.xxx     xx.x        NDSI 2000   ntest = 28000
+# 11      0.660     & 63.2        NDSI 100    ntest = 28000
+# 12      0.704     & 68.4        NDSI 250    ntest = 28000
+# 13      0.xxx     & xx.x        NDSI 500    ntest = 28000
+# 14      0.xxx     & xx.x        NDSI 1000   ntest = 28000
+# 15      0.xxx     & xx.x        NDSI 1500   ntest = 28000
+# 16      0.xxx     & xx.x        NDSI 2000   ntest = 28000
 
-# 11      0.772     70.4        NDSI 100    ntest = 4000
-# 12      0.785     73.8        NDSI 250    ntest = 4000
-# 13      0.784     73.2        NDSI 500    ntest = 4000
-# 14      0.787     74.7        NDSI 1000   ntest = 4000
-# 15      0.788     74.1        NDSI 1500   ntest = 4000
-# 16      0.794     74.8        NDSI 2000   ntest = 4000
+# 11      0.772     & 70.4        NDSI 100    ntest = 4000
+# 12      0.785     & 73.8        NDSI 250    ntest = 4000
+# 13      0.784     & 73.2        NDSI 500    ntest = 4000
+# 14      0.787     & 74.7        NDSI 1000   ntest = 4000
+# 15      0.788     & 74.1        NDSI 1500   ntest = 4000
+# 16      0.794     & 74.8        NDSI 2000   ntest = 4000
