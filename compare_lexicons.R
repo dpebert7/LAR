@@ -1,11 +1,69 @@
-# 10 December 2016
+# 13 January 2017
+# Compare 4 lexicons over the entire emoji/emoticon data set
+
+source("functions.R") #get cleaning function, AFINN_lexicon
+
+library(feather)
+library(pROC)
+library(ROCR)
+
+# Get all of the emoji data (352080 rows) with lexicon scores
+emoji_df_no_stem = read_feather(path = "~/Desktop/Huang Research/LAR_Data/compare_lexicons/feather_data/2016-08/emoji_df_no_stem.feather")
+
+# afinn_score
+roc(emoji_df_no_stem$polarity, emoji_df_no_stem$afinn_score)$auc
+max(unlist(performance(prediction(emoji_df_no_stem$afinn_score, emoji_df_no_stem$polarity),"acc")@y.values))
+
+
+# opinionfinder_score
+roc(emoji_df_no_stem$polarity, emoji_df_no_stem$opinionfinder_score)$auc
+max(unlist(performance(prediction(emoji_df_no_stem$opinionfinder_score, emoji_df_no_stem$polarity),"acc")@y.values))
+
+
+# nrc_score
+roc(emoji_df_no_stem$polarity, emoji_df_no_stem$nrc_score)$auc
+max(unlist(performance(prediction(emoji_df_no_stem$nrc_score, emoji_df_no_stem$polarity),"acc")@y.values))
+
+
+# anew_score
+roc(emoji_df_no_stem$polarity, emoji_df_no_stem$anew_score)$auc
+max(unlist(performance(prediction(emoji_df_no_stem$anew_score, emoji_df_no_stem$polarity),"acc")@y.values))
+
+
+# RESULTS FROM COMPARING LEXICONS: 352080 EMOJI/EMOTICON TWEETS
+# 
+# LEXICON		    AUC	    ACCURACY
+# AFINN		      0.690	  64.3\%
+# OpinionFinder	0.647	  60.9\%
+# NRC		        0.644	  60.7\%
+# ANEW		      0.696	  63.8\%
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#10 December 2016
 # Compare 4 lexicons
 
 # libraries, functions, and directory, cleaning function , AFINN_lexicon, etc----
 source("functions.R") #get cleaning function, AFINN_lexicon
 
 
-# EMOJI DATA: 40000 equally balanced semisupervised tweets from LA August 2016  
+# EMOJI DATA: 40000 equally balanced semi-supervised tweets from LA August 2016  
   a = Sys.time()
   import_tweets_from_json(months_to_import = "2016-08/", 
                           base_file_path = "~/Desktop/Huang Research/LAR_Data/compare_lexicons",
@@ -41,7 +99,6 @@ source("functions.R") #get cleaning function, AFINN_lexicon
     AFINN_lexicon = AFINN_lexicon[AFINN_lexicon$word != "sadtoken" & AFINN_lexicon$word != "happytoken",]
     emoji_df_no_stem$AFINN.score = lexicon_sentiment_score(emoji_df_no_stem$text)
     #optimize.cutoff(score.vec = emoji_df_no_stem$AFINN.score, polarity.vec = emoji_df_no_stem$polarity)
-    auc(roc(emoji_df_no_stem$polarity, emoji_df_no_stem$AFINN.score))
     auc(roc(emoji_df_no_stem$polarity, emoji_df_no_stem$afinn_score))
     
 

@@ -2,14 +2,41 @@
 # 12 January 2017
 
 library(ggplot2)
+library(reshape)
 
 num_words = c(100, 200, 300, 400, 500, 600, 700, 800, 900, 1000)
-emoji_auc = c(.7420, .7994, .8204, .8158, .8275, .8344, .8351, .8368, .8350, .8340)
-emoji_acc = c(.7158, .7311, .7430, .7520, .7568, .7580, .7570, .7580, .7590, .7588)
-s140_auc =  c(.6497, .7133, .7302, .7546, .7610, .7557, .7510, .7580, .7467, .7540)
-s140_acc =  c(.6324, .6923, .7264, .7094, .7350, .7264, .7350, .7179, .7179, .7260)
+AUC = c(.7420, .7994, .8204, .8158, .8275, .8344, .8351, .8368, .8350, .8340) # This is for Emoji
+Accuracy = c(.7158, .7311, .7430, .7520, .7568, .7580, .7570, .7580, .7590, .7588) # This is for Emoji
+s140_auc =  c(.6497, .7133, .7302, .7546, .7610, .7557, .7510, .7580, .7467, .7540) # This is for Sent140
+s140_acc =  c(.6324, .6923, .7264, .7094, .7350, .7264, .7350, .7179, .7179, .7260) # This is for Sent140
 minutes = c(5.0, 14.1, 28.1, 29.4, 40.8, 50.5, 1.03*60, 1.23*60, 1.37*60, 1.5*60)
-df = as.data.frame(cbind(num_words, emoji_auc, emoji_acc, s140_auc, s140_acc, minutes))
+df = as.data.frame(cbind(num_words, AUC, Accuracy))
+
+melt(df, id=c("num_words"))
+
+p = ggplot(data = melt(df, id=c("num_words")), aes(x = num_words, y = value, colour = variable)) +
+  geom_line(aes(linetype = variable), size = 0.9) +
+  xlab("Number of NDSI words used") + ylab("") +
+  #ggtitle("Accuracy and AUC vs NDSI Words Used") +
+  theme_bw() +
+  theme(legend.title=element_blank()) +
+  scale_fill_discrete(name="Blah",
+                      breaks=c("emoji_auc", "emoji_auc"),
+                      labels=c("AUC", "Accuracy 1")) +
+  scale_color_manual(values=c("red", "black")) +
+  theme(legend.position = c(.85,.2)) +
+  scale_x_continuous(name="Number of NDSI words used", breaks=seq(0,1000,200)) +
+  scale_y_continuous(name="", limits=c(0.7, 0.85), breaks = seq(0.7, 0.85, 0.05))
+p
+
+
+
+
+
+
+
+
+# Junk below here, I think.
 
 
 # First plot
@@ -43,12 +70,6 @@ p = p + scale_colour_manual("",
   scale_x_continuous(name="Number of words used", breaks=seq(0,1000,200)) +
   scale_y_continuous(name="", limits=c(0.6, 0.8), breaks = seq(0.6, 0.8, 0.05))
 p
-
-
-
-
-
-
 
 
 # Second Attempt
