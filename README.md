@@ -1,6 +1,4 @@
-[[https://github.com/dpebert7/LAR/images/img0020.png|alt=la_image]]
-
-![LAR_image](https://github.com/dpebert7/LAR/images/img0020.png|alt=la_image)
+![LAR_image](https://github.com/dpebert7/LAR/blob/master/images/img0020.png)
 
 # LAR
 
