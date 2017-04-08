@@ -44,9 +44,9 @@ library(feather)
 ################################
 library(feather)
 a = Sys.time()
-#all_august_tweets = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/1.feather")
-#all_august_tweets = rbind(all_august_tweets, read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/2.feather"))
-#all_august_tweets = rbind(all_august_tweets, read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/3.feather"))
+all_august_tweets = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/1.feather")
+all_august_tweets = rbind(all_august_tweets, read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/2.feather"))
+all_august_tweets = rbind(all_august_tweets, read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/3.feather"))
 
 #write_feather(all_august_tweets, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august.feather")
 all_august_tweets = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august.feather")
@@ -128,25 +128,25 @@ rf_model$sent140_accuracy
 # then classify them!
 all_august_tweets$pred_polarity = classify.polarity.machine(tweet_df = all_august_tweets, 
                                                             chunk.size = 10000, 
-                                                            ndsi_lexicon = ndsi_lexicon_df$word, 
-                                                            model = rf_model$model)
+                                                            ndsi_lexicon = max_imbalance_lexicon, 
+                                                            model = final_model_emoji)
 #cutoff = 0.5
 #all_august_tweets$pred_polarity = as.numeric(all_august_tweets$pred_polarity>cutoff)
-#write.csv(x = all_august_tweets, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august_pred.csv", row.names = FALSE)
-#write_feather(all_august_tweets, path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august_pred.feather")
+write.csv(x = all_august_tweets, file = "~/Desktop/Huang Research/LAR_Data/all_august_pred.csv", row.names = FALSE)
+write_feather(all_august_tweets, path = "~/Desktop/Huang Research/LAR_Data/all_august_pred.feather")
 beepr::beep(3)
 
 
-#all_august_pred_import = read.csv(x = all_august_tweets, 
-#                                  file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august_pred.csv", row.names = FALSE)
-all_august_pred_import = read_feather(path = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/all_august_pred.feather")
+all_august_pred_import = read.csv(file = "~/Desktop/Huang Research/LAR_Data/all_august_pred.csv", row.names = FALSE)
+all_august_pred_import = read_feather(path = "~/Desktop/Huang Research/LAR_Data/all_august_pred.feather")
 
 
 # Write all_august_pred to 2 shortened files
-# august_pred_import_1 = all_august_pred_import[1:2000000,c("screen_name", "id_str", "lat", "lon", "afinn_score", "pred_polarity")]
-# august_pred_import_2 = all_august_pred_import[2000001:nrow(all_august_pred_import),c("screen_name", "id_str", "lat", "lon", "afinn_score", "pred_polarity")]
-# write.csv(x = august_pred_import_1, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/august_pred_import_1.csv", row.names = FALSE)
-# write.csv(x = august_pred_import_1, file = "~/Desktop/Huang Research/LAR_Data/feather_data/2016-08/august_pred_import_2.csv", row.names = FALSE)
+library(feather)
+august_pred_import_1 = all_august_pred_import[1:2000000,c("screen_name", "id_str", "lat", "lon", "afinn_score", "pred_polarity")]
+august_pred_import_2 = all_august_pred_import[2000001:nrow(all_august_pred_import),c("screen_name", "id_str", "lat", "lon", "afinn_score", "pred_polarity")]
+write.csv(x = august_pred_import_1, file = "~/Desktop/Huang Research/LAR_Data/august_pred_import_1.csv", row.names = FALSE)
+write.csv(x = august_pred_import_1, file = "~/Desktop/Huang Research/LAR_Data/august_pred_import_2.csv", row.names = FALSE)
 
 
 

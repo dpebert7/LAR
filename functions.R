@@ -12,10 +12,9 @@ library(caret) #for confusionMatrix
 library(feather) # for importing data
 library(tm)
 
-setwd("/home/david/Desktop/Documents/GitRepos/LAR")
 storage.directory = "~/Desktop/Huang Research/LAR/"
 github.directory = "~/Desktop/Documents/GitRepos/LAR"
-    
+setwd(github.directory)
 
 
 #############################################################
@@ -67,7 +66,8 @@ classify.polarity.machine = function(tweet_df,
     )
   }
   
-  column.names = paste("X", 1:500, sep = "")
+  column.names = paste("X", 1:nrow(ndsi_lexicon_df), sep = "")
+  #print(column.names)
   result = NULL
   
   chunks = bin.maker(chunk.size, length(documents))
@@ -93,7 +93,7 @@ classify.polarity.machine = function(tweet_df,
                                     "count_usernames",
                                     "count_url",
                                     "is_reply")], term.freq)
-    
+
     pred.sentiment = predict(model, newdata = term.freq, type = "prob")
     result = c(result, pred.sentiment[, 2]) # Column 2 gives the probability of 'sad' tweets
   }
@@ -305,13 +305,19 @@ word_lookup = function(documents, word){ #look up a word in list of documents. R
 lexicon_sentiment_score = function(documents, lexicon = AFINN_lexicon){
   require(plyr)
   require(dplyr)
-  negations = c("no", "not","none","nobody","nothing","neither","never","doesnt",
-                "isnt","wasnt","shouldnt","wouldnt", "couldnt","wont","cant","dont")
+  negations = c("no", "not", "neither", "never", "nobody", "none", 
+                "nor", "nothing", "nowhere", "dont", "doesnt", "didnt", "cannot",
+                "isnt","wasnt","shouldnt","wouldnt", "couldnt","wont", "cant", "dont",
+                "hardly")
+  # From the following websites:
+  # http://dictionary.cambridge.org/us/grammar/british-grammar/questions-and-negative-sentences/negation
+  # https://www.grammarly.com/handbook/sentences/negatives/
   sentscorevec = laply(documents, function(documents, lex = lexicon)
   {
     words = unlist(strsplit(documents, " ")) #access words
     #eventually add words to term-document matrix here?
     indices = match(words, lexicon[,1], nomatch = 0)
+    print(indices)
     vals = as.numeric(lexicon[indices,2])
     #print(c(words, indices, vals))
     
@@ -323,7 +329,7 @@ lexicon_sentiment_score = function(documents, lexicon = AFINN_lexicon){
         if(words[i-1] %in% negations & words[i] != words[i-1]){
           #print(words[(i-1):i])
           #print("There's a negation here")
-          vals[length(vals)+1] = (-2)*as.numeric(lexicon[pmatch(words[i], lexicon[,1], nomatch = NA),2])
+          vals[length(vals)+1] = (-1)*as.numeric(lexicon[match(words[i], lexicon[,1], nomatch = NA),2])
         }
       }   
     }
@@ -345,17 +351,22 @@ lexicon_sentiment_score = function(documents, lexicon = AFINN_lexicon){
 #csv_file_path = "~/Desktop/Huang Research/LAR_Data/csv_data/"
 #max_tweets_per_file = 1000000  # make sure this number is significantly above the number of tweets per file, about 200k
 
+
 import_tweets_from_json = function(months_to_import,
                                    base_file_path = "~/Desktop/Huang Research/LAR_Data/",
                                    raw_file_path = "raw_data/",
                                    feather_file_path = "feather_data/",
                                    csv_file_path = "csv_data/",
-                                   max_tweets_per_file = 2000000,
+                                   max_tweets_per_file = 1800000,
                                    all_four_lexicons = FALSE,
                                    stem_tweets = TRUE){
   require(streamR)
   require(feather)
   
+  parsed_tweets = 0
+  inlatlon_tweets = 0
+  usable_tweets = 0
+
   keep_df = data.frame()
   setwd(base_file_path)
   for(month in months_to_import){
@@ -368,15 +379,13 @@ import_tweets_from_json = function(months_to_import,
       print(paste("Reading ", raw_file_path, month, i, "...", sep = ""))
       
       #Import one .json file into R as data frame
-      temp_df = parseTweets(tweets = paste(raw_file_path, month, i, sep = ""))
+        temp_df = parseTweets(tweets = paste(raw_file_path, month, i, sep = ""))
+        parsed_tweets = parsed_tweets + nrow(temp_df)
       
       #Remove unnecessary raw columns
-      temp_df = remove_raw_columns(temp_df)
+        temp_df = remove_raw_columns(temp_df)
       
-      #Remove very spanish sounding tweets
-      temp_df = remove_spanish_tweets(temp_df)
-      
-      #Remove columns without lat or lon
+      #Remove rows without lat or lon
         temp_df = temp_df[!is.na(temp_df$lat),]
         temp_df = temp_df[!is.na(temp_df$lon),]
       
@@ -385,7 +394,11 @@ import_tweets_from_json = function(months_to_import,
         temp_df = temp_df[temp_df$lat <= 35,]
         temp_df = temp_df[temp_df$lon >= -119,]
         temp_df = temp_df[temp_df$lon <= -117,]
-      
+        inlatlon_tweets = inlatlon_tweets + nrow(temp_df)
+        
+      #Remove very spanish sounding tweets
+        temp_df = remove_spanish_tweets(temp_df)
+
       #Identify happy and sad emoticons in tweets before cleaning.
       #Happy tweets have polarity marked as TRUE; Sad tweets have polarity marked as FALSE
         print(paste("Identifying happy and sad tweets in ", i, "...", sep = ""))
@@ -399,6 +412,7 @@ import_tweets_from_json = function(months_to_import,
       
       #Remove rows with no text
         temp_df = temp_df[temp_df$text!="",]
+        usable_tweets = usable_tweets + nrow(temp_df)
       
       #Find AFINN score for new tweets
         print(paste("Finding AFINN scores for ", i, "...", sep = ""))
@@ -424,6 +438,10 @@ import_tweets_from_json = function(months_to_import,
       #Combine temp_df and keep_df
       keep_df = rbind(keep_df, temp_df)
       
+      print(paste("parsed_tweets",parsed_tweets))       # About 5.1 million tweets hopefully
+      print(paste("inlatlon_tweets:",inlatlon_tweets))  #
+      print(paste("usable tweets:",usable_tweets))      # Hopefully 4.6 million tweets
+
       #If keep_df is too big, then write max_tweets_per_file tweets from keep_df to file
       if(nrow(keep_df) > max_tweets_per_file){
         
@@ -434,6 +452,7 @@ import_tweets_from_json = function(months_to_import,
         # Now write max_tweets_per_file # of tweets to file from write_df and let keep_df keep collecting batches of tweets
         print(paste("Writing", nrow(write_df), "Tweets to file", sep = " "))
         write_feather(x = write_df, path = paste(feather_file_path, month, j, ".feather", sep=""))
+        save(x = write_df, file = paste(feather_file_path, month, j, ".RData", sep=""))
         write.csv(x = write_df, file = paste(csv_file_path, month, j, ".feather", sep=""), row.names = FALSE)
         write_df = NULL
         j = j+1
@@ -448,12 +467,16 @@ import_tweets_from_json = function(months_to_import,
         # Write tweets to file
         print(paste("Writing", nrow(write_df), "Tweets to file", sep = " "))
         write_feather(x = write_df, path = paste(feather_file_path, month, j, ".feather", sep=""))
+        save(x = write_df, file = paste(feather_file_path, month, j, ".RData", sep=""))
         write.csv(x = write_df, file = paste(csv_file_path, month, j, ".csv", sep=""), row.names = FALSE)
         write_df = NULL
         j = 1
       }
     }
   }
+  print(paste("final parsed_tweets",parsed_tweets))       # About 5.1 million tweets hopefully
+  print(paste("final inlatlon_tweets:",inlatlon_tweets))  #
+  print(paste("final usable tweets:",usable_tweets))      # Hopefully 4.6 million tweets
 }
 
 
@@ -532,9 +555,8 @@ make_ndsi_lexicon = function(emoticon_tweets,
   #Differences between Positive and Negative Frequencies
   ndsi_lexicon$diff = abs(ndsi_lexicon$freq.happy - ndsi_lexicon$freq.sad)
   
-  #NDSI - note the presence of smoothing_alpha term: Version 1
-  ndsi_lexicon$ndsi = abs(ndsi_lexicon$diff)/
-    (ndsi_lexicon$freq.happy + ndsi_lexicon$freq.sad + 2 * smoothing_alpha) 
+  #NDSI - note the ABSENCE of smoothing_alpha term: Version 1
+  ndsi_lexicon$ndsi = abs(ndsi_lexicon$diff)
   
   #NDSI - note the presence of smoothing_alpha term: Version 2
   #ndsi_lexicon$ndsi = abs(ndsi_lexicon$diff + ndsi_lexicon$freq.happy + ndsi_lexicon$freq.sad)/
@@ -543,6 +565,8 @@ make_ndsi_lexicon = function(emoticon_tweets,
   #Optional: Remove hashtoken and usernametoken
   ndsi_lexicon = ndsi_lexicon[ndsi_lexicon$word != 'hashtoken',]
   ndsi_lexicon = ndsi_lexicon[ndsi_lexicon$word != 'usernametoken',]
+  ndsi_lexicon = ndsi_lexicon[ndsi_lexicon$word != 'happytoken',]
+  ndsi_lexicon = ndsi_lexicon[ndsi_lexicon$word != 'sadtoken',]
   
   #Sorting by NDSI, then scale NDSI score to 1.
   ndsi_lexicon = ndsi_lexicon[order(-ndsi_lexicon$ndsi), ]
@@ -624,7 +648,7 @@ make_rf_classifier = function(emoticon_term_freq, ndsi_lexicon, ntrain = 100, nt
   
   #train AUC
   train_auc = roc(emoticon_term_freq$polarity[train_indices],train_phat[,2])$auc
-
+  
   #test accuracy
   test_phat = predict(rf_model, newdata = emoticon_term_freq[test_indices,], type = "prob")
   test_cutoff_info = optimize_rf_cutoff(score.vec = test_phat[,2], polarity.vec = emoticon_term_freq[test_indices,"polarity"], 
@@ -632,20 +656,21 @@ make_rf_classifier = function(emoticon_term_freq, ndsi_lexicon, ntrain = 100, nt
   test_cutoff = test_cutoff_info$optimal_cutoff
   test_accuracy = test_cutoff_info$accuracy
   
+  
   #test AUC
   test_auc = roc(emoticon_term_freq$polarity[test_indices],test_phat[,2])$auc
   
   #Sent140
-  sent140 = get_sent140()
-  sent140_term_freq = make_term_freq(sent140, ndsi_lexicon)
-  sent140_phat = predict(rf_model, newdata = sent140_term_freq, type = "prob")
-  sent140_cutoff_info = optimize_rf_cutoff(score.vec = sent140_phat[,2], polarity.vec = as.numeric(sent140$polarity)-1, 
-                                      min = 0.3, max = 0.7, step = 0.001)
+  #sent140 = get_sent140()
+  #sent140_term_freq = make_term_freq(sent140, ndsi_lexicon)
+  #sent140_phat = predict(rf_model, newdata = sent140_term_freq, type = "prob")
+  #sent140_cutoff_info = optimize_rf_cutoff(score.vec = sent140_phat[,2], polarity.vec = as.numeric(sent140$polarity)-1, 
+  #                                    min = 0.3, max = 0.7, step = 0.001)
   
   # Accuracy and AUC
-  sent140_cutoff = sent140_cutoff_info$optimal_cutoff
-  sent140_accuracy = sent140_cutoff_info$accuracy
-  sent140_auc = roc(sent140_term_freq$polarity,sent140_phat[,2])$auc
+  #sent140_cutoff = sent140_cutoff_info$optimal_cutoff
+  #sent140_accuracy = sent140_cutoff_info$accuracy
+  #sent140_auc = roc(sent140_term_freq$polarity,sent140_phat[,2])$auc
   
   return(list(
     "ntrain" = length(train_indices),
@@ -660,10 +685,10 @@ make_rf_classifier = function(emoticon_term_freq, ndsi_lexicon, ntrain = 100, nt
     "test_optimal_cutoff" = test_cutoff,
     "test_phat" = test_phat,
     
-    "sent140_accuracy" = sent140_accuracy,
-    "sent140_auc" = sent140_auc,
-    "sent140_cutoff" = sent140_cutoff,
-    "sent140_phat" = sent140_phat,
+    #"sent140_accuracy" = sent140_accuracy,
+    #"sent140_auc" = sent140_auc,
+    #"sent140_cutoff" = sent140_cutoff,
+    #"sent140_phat" = sent140_phat,
     
     "model" = rf_model))
 }
@@ -681,8 +706,8 @@ optimize_rf_cutoff = function(score.vec, polarity.vec, min = 0, max = 10, step =
   for(i in 1:length(cutoffs)){
     accuracy.vec[i] = confusionMatrix(as.numeric(score.vec>=(cutoffs[i])),polarity.vec)$overall[1]
   }
-  print(plot(roc(polarity.vec, score.vec)))
-  print(accuracy.vec)
+  #print(plot(roc(polarity.vec, score.vec)))
+  #print(accuracy.vec)
   optimal.cutoff = cutoffs[which.max(accuracy.vec)]
   accuracy = confusionMatrix(as.numeric(score.vec>=(optimal.cutoff)),polarity.vec)$overall[1]
   return(list(
@@ -788,10 +813,10 @@ build_classifier_from_tweets = function(tweet_df, ntrain = 10000, ntest = 5000, 
 
 #NRC_lexicon Word-Emotion Association Lexicon (formerly known as EmoLex)
     NRC_lexicon = read.csv(file = "Lexicons/EmoLex/NRC-emotion-lexicon-wordlevel-alphabetized-v0.92.txt",
-                   sep = "\t", header = FALSE)
+                   sep = "\t", header = FALSE) # Starts with 141,820 words
     colnames(NRC_lexicon) = c("word", "emotion", "indicator")
-    NRC_lexicon = NRC_lexicon[NRC_lexicon$emotion == "negative"|NRC_lexicon$emotion == "positive",]
-    NRC_lexicon = NRC_lexicon[NRC_lexicon$indicator == 1,]
+    NRC_lexicon = NRC_lexicon[NRC_lexicon$emotion == "negative"|NRC_lexicon$emotion == "positive",] #Now 28364 words
+    NRC_lexicon = NRC_lexicon[NRC_lexicon$indicator == 1,] #Now 5636 words, each indicative of or "positive" or "negative"
     NRC_lexicon[NRC_lexicon$emotion == "negative",]$indicator = -1
     NRC_lexicon = NRC_lexicon[c("word", "indicator")]
     colnames(NRC_lexicon) = c("word", "score")
