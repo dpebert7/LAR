@@ -1,3 +1,5 @@
+![LAR_image](https://github.com/dpebert7/LAR/blob/master/images/img0020.png)
+
 # LAR
 
 Sentiment polarity analysis of tweets from Los Angeles County. These R scripts are used to (1) collect geotagged tweets from Los Angeles county; (2) clean, stem, and process tweets; (3) train and evaluate a semi-supervised random forest classifier; (4) classify the sentiment polarity of tweets from LA county; and (5) plot the tweets on a map of LA county. 
